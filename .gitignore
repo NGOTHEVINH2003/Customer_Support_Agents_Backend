@@ -41,6 +41,8 @@ gha-creds-*.json
 pip-log.txt
 chroma_db/
 *.db
+*.sqlite3
+*.pdf
 
 # PyBuilder
 target/

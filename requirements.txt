@@ -10,5 +10,6 @@ streamlit
 plotly-express
 sentence-transformers
 python-multipart
-sckit-learn
+scikit-learn
 torch
+unstructured[pdf]
