@@ -39,8 +39,8 @@ gha-creds-*.json
 
 # Logs
 pip-log.txt
-pip-delete-this-directory.txt
-chroma_db/logs
+chroma_db/logs/*
+chroma_db/Logs/*
 
 # PyBuilder
 target/
