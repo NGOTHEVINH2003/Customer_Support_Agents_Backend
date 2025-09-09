@@ -6,3 +6,5 @@ langchain-google-genai
 chromadb
 pydantic
 python-dotenv
+streamlit
+plotly-express
