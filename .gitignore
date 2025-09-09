@@ -39,8 +39,7 @@ gha-creds-*.json
 
 # Logs
 pip-log.txt
-chroma_db/logs/
-chroma_db/Logs/
+chroma_db/
 
 # PyBuilder
 target/
