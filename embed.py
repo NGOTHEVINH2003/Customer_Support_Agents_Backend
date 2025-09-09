@@ -28,7 +28,7 @@ def build_chroma_from_pdf(pdf_path, persist_dir="chroma_db"):
     return vectordb
 
 if __name__ == "__main__":
-    data_folder = "D:\\Tuyên\\outsource\\window_trouble\\data"
+    data_folder = "C:\\Users\\ADMIN\\Desktop\\Data"
     db_dir = "chroma_db"
 
     pdf_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith(".pdf")]
