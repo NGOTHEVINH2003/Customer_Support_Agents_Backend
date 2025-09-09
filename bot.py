@@ -57,7 +57,7 @@ qa_chain = RetrievalQA.from_chain_type(
 ) 
 
 # Query
-def ask_question(query):
+async def ask_question(query):
     try:
         answer = qa_chain.run(query)
         return answer
