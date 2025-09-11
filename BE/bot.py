@@ -8,12 +8,12 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 os.environ["GOOGLE_API_KEY"] = "AIzaSyB1NhXVpfN3DsICHkqCFcg-LyysItTFWbk"
 
 # Load datadata
-persist_dir = "chroma_db" 
+persist_dir = "../chroma_db/" 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2") 
 vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model) 
 
 # RRetriever
-retriever = vectordb.as_retriever(search_kwargs={"k": 3}) 
+retriever = vectordb.as_retriever(search_kwargs={"k": 5}) 
 
 # LLM
 llm = ChatGoogleGenerativeAI(

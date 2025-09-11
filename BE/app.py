@@ -2,14 +2,14 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from bot import ask_question
-from BE.embed import build_chroma_from_pdf
-from fastapi import UploadFile, File
+from embed import build_chroma_from_pdf
+from fastapi import UploadFile, File # pyright: ignore[reportMissingImports]
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
 @app.get("/")
 async def root():
     return RedirectResponse(url="/docs")
-@app.post("/ask")
+@app.post("/query")
 async def ask(query: str):
     try:
         answer = await ask_question(query)
