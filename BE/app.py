@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
 from bot import ask_question
 from embed import build_chroma_from_pdf
-from fastapi import UploadFile, File # pyright: ignore[reportMissingImports]
+from fastapi import UploadFile, File
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
 @app.get("/")
