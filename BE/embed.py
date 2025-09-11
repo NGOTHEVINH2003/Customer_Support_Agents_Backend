@@ -46,7 +46,7 @@ def update_document(docs, source, doc_id, last_modified, metada=None):
         print(f"Document {doc_id} from {source} is up-to-date. Skipping ingestion.")
 
 
-def build_chroma_from_pdf(pdf_path, persist_dir="../chroma_db/"):
+def build_chroma_from_pdf(pdf_path, persist_dir="chroma_db"):
     # Load PDF
     loader = PyPDFLoader(pdf_path)
     documents = loader.load()
@@ -58,9 +58,7 @@ def build_chroma_from_pdf(pdf_path, persist_dir="../chroma_db/"):
     print(f"Chunks after splitting: {len(docs)}")
 
     # Embedding model
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", model_kwargs={"device": device} )
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     # Save into ChromaDB
     vectordb = Chroma.from_documents(docs, embeddings, persist_directory=persist_dir)
@@ -68,6 +66,7 @@ def build_chroma_from_pdf(pdf_path, persist_dir="../chroma_db/"):
     print(f"Saved dataset in: {persist_dir}")
 
     return vectordb
+
 
 if __name__ == "__main__":
     data_folder = "C:\\Users\\ADMIN\\Desktop\\Data"
