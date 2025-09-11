@@ -29,13 +29,13 @@ rating_dist = pd.DataFrame({
     "count": [40, 65, 180, 310, 325]
 })
 
-left, right = st.columns([1,1], border=True)
-with left:
+aiVSEscalatedPie, ratingDistBar = st.columns([1,1], border=True)
+with aiVSEscalatedPie:
     st.subheader("AI Answered vs Escalated")
-    fig =  px.pie(ai_vs_escalated, names="name", values="value", hole=0.35,
+    fig =  px.pie(ai_vs_escalated, names="name", values="value", hole=0.5,
                      color="name", color_discrete_map={"AI answered":"#22c55e","Escalated":"#ef4444"})
     st.plotly_chart(fig, use_container_width=True, theme=None)
-with right:
+with ratingDistBar:
     st.subheader("Distribution Rating (⭐)")
     fig2 = px.bar(rating_dist, x="rating", y="count", labels={"count":"Feedback","rating":"Rating"}, color="rating")
     st.plotly_chart(fig2, use_container_width=True, theme=None)
