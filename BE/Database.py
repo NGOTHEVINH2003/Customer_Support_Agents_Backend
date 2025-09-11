@@ -27,7 +27,7 @@ def init_db():
 
 
     cur.execute
-    ("""CREATE TABLE IF NOT EXISTS ingestion_logs(
+    ("""CREATE TABLE IF NOT EXISTS ingestion_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         document_id TEXT NOT NULL,
@@ -46,7 +46,7 @@ def log_query(query: str, answer: str, similarity_score: float):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO logs (question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
+        "INSERT INTO query_logs (question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
         (query, similarity_score, answer, datetime.utcnow().isoformat() )
     )
     conn.commit()
@@ -57,7 +57,7 @@ def updated_flagged_status(log_id: int, flagged: bool):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE logs SET flagged = ? WHERE id = ?",
+        "UPDATE query_logs SET flagged = ? WHERE id = ?",
         (1 if flagged else 0, log_id)
     )
     conn.commit()
@@ -104,6 +104,11 @@ def log_ingestion(source: str, document_id: str, status: str, metadata: dict = N
     )
     conn.commit()
     conn.close()
+
+
+if __name__ == "__main__":
+    init_db()
+print(f"Database created at {DB_PATH}")
 
 
 
