@@ -1,6 +1,15 @@
 import streamlit as st
+import pandas as pd
 
 st.title("📂 Ingestion / Data Status")
+
+st.subheader("Upload file to ingest")
+uploaded_files = st.file_uploader(
+    "Upload data", accept_multiple_files=True, type="txt"
+)
+for uploaded_file in uploaded_files:
+    df = pd.read_csv(uploaded_file)
+    st.write(df)
 
 st.subheader("📜 Lịch sử ingest docs")
 st.table({
