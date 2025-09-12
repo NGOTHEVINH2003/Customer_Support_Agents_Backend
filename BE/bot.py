@@ -13,7 +13,7 @@ embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-Mi
 vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model) 
 
 # Retriever
-retriever = vectordb.as_retriever(search_kwargs={"k": 3}) 
+retriever = vectordb.as_retriever(search_kwargs={"k": 5}) 
 
 # LLM
 llm = ChatGoogleGenerativeAI(
@@ -67,7 +67,7 @@ qa_chain = RetrievalQA.from_chain_type(
 )
 
 # Query with confidence
-def ask_question(query):
+async def ask_question(query):
     try:
         result = qa_chain(query)  
         answer = result["result"]
