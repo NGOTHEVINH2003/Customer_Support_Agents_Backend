@@ -17,11 +17,13 @@ def init_db():
 
     cur.execute("""CREATE TABLE IF NOT EXISTS query_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,
+        question_id TEXT,
         question TEXT NOT NULL,
         similarity_score REAL,
         answer TEXT,
         flagged INTEGER DEFAULT 0,
+        Thumps_up INTEGER DEFAULT 0,
+        Thumps_down INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )""")
 
