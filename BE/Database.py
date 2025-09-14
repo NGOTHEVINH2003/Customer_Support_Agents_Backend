@@ -16,8 +16,8 @@ def init_db():
     cur = conn.cursor()
 
     cur.execute("""CREATE TABLE IF NOT EXISTS query_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question_id TEXT,
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question_id TEXT NOT NULL,
         question TEXT NOT NULL,
         similarity_score REAL,
         answer TEXT,
@@ -44,23 +44,23 @@ def init_db():
     conn.close()
 
 
-def log_query(query: str, answer: str, similarity_score: float):
+def log_query(question_id: str,query: str, answer: str, similarity_score: float):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO query_logs (question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
-        (query, similarity_score, answer, datetime.utcnow().isoformat() )
+        "INSERT INTO query_logs (question_id,question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
+        (question_id,query, similarity_score, answer, datetime.utcnow().isoformat() )
     )
     conn.commit()
     conn.close()
     return cursor.lastrowid
 
-def updated_flagged_status(log_id: int, flagged: bool):
+def updated_flagged_status(question_id: int, flagged: bool, thumbs_up: bool = None, thumbs_down: bool = None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE query_logs SET flagged = ? WHERE id = ?",
-        (1 if flagged else 0, log_id)
+        "UPDATE query_logs SET flagged = ?, thumbs_up = ?, thumbs_down = ?  WHERE question_id = ?",
+        (1 if flagged else 0, 1 if thumbs_up else 0, 1 if thumbs_down else 0 , question_id)
     )
     conn.commit()
     conn.close()

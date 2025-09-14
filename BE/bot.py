@@ -1,5 +1,5 @@
 import os
-from langchain_community.vectorstores import Chroma 
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings 
 from langchain.prompts import PromptTemplate 
 from langchain.chains import RetrievalQA 
@@ -39,8 +39,8 @@ Your answer must strictly follow this structured format:
 **Causes**  
 - List the possible causes of this error (e.g., corrupted system files, registry issues, Active Directory problems, etc.)
 
-**Solutions**  
-- Provide recommended solutions or step-by-step fixes to resolve the issue
+**Resolutions**  
+- Provide recommended resolution or step-by-step fixes to resolve the issue
 ---
 
 Instructions:
