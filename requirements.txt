@@ -8,3 +8,7 @@ pydantic
 python-dotenv
 streamlit
 plotly-express
+sentence-transformers
+python-multipart
+sckit-learn
+torch

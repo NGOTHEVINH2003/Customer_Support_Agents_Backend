@@ -1,25 +1,26 @@
 import os
-from langchain_community.vectorstores import Chroma 
+from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings 
 from langchain.prompts import PromptTemplate 
 from langchain.chains import RetrievalQA 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyB1NhXVpfN3DsICHkqCFcg-LyysItTFWbk"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDzOEsI6A1cYxbB0LvSTbWu6fQjFpeFfIU"
 
 # Load data
-persist_dir = "../chroma_db" 
+persist_dir = "chroma_db" 
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2") 
 vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model) 
 
 # Retriever
-retriever = vectordb.as_retriever(search_kwargs={"k": 3}) 
+retriever = vectordb.as_retriever(search_kwargs={"k": 5}) 
 
 # LLM
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash", 
     temperature=0,
-    google_api_key=os.getenv("GOOGLE_API_KEY")
+    google_api_key=os.getenv("GOOGLE_API_KEY"),
+    max_retries=1
 ) 
 
 # Custom prompt
@@ -27,27 +28,29 @@ prompt_template = PromptTemplate(
     input_variables=["context", "question"], 
     template="""You are a Windows troubleshooting assistant.
 Based only on the information provided in the context, answer the user's question in English.
-Your answer must strictly follow this structured format:
+Follow these rules:
+
+1. If the user asks about **symptoms**, only provide the symptoms of the error.  
+2. If the user asks about **causes**, only provide the causes of the error.  
+3. If the user asks about **solutions/fixes**, only provide the solutions.  
+4. If the user asks generally (e.g., just the error code), then provide all sections (Overview, Symptoms, Causes, Solutions).  
+5. Regardless of the question type, always end the answer with a **Recommended Solution** section.  
+
+Answer format must strictly follow this style:
 
 ---
-**Error Overview**  
-(Briefly describe what the error is and when it happens)
+**[Main Section Title based on the question]**  
+- Use bullet points to list the relevant information  
 
-**Symptoms**  
-- List the common symptoms or signs when this error occurs
-
-**Causes**  
-- List the possible causes of this error (e.g., corrupted system files, registry issues, Active Directory problems, etc.)
-
-**Solutions**  
-- Provide recommended solutions or step-by-step fixes to resolve the issue
+**Recommended Solution**  
+- Provide the key solution(s) or next steps for the user
 ---
 
 Instructions:
-- Only use information from the context.
+- Only use information from the context.  
 - If the context does not contain relevant information, clearly state:  
-  "The dataset does not provide information about this error."
-- Do not fabricate or assume facts.
+  "The dataset does not provide information about this error."  
+- Do not fabricate or assume facts.  
 - Always answer in English only.
 
 Context:
