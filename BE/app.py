@@ -39,7 +39,7 @@ async def ingest_data_test(file: UploadFile= File(...)):
 async def query_endpoint(query: Query): 
     try:
         answer = await ask_question(query.question)
-        log_id = log_query(query.question_id,query.question, answer, query.similarity_score)
+        log_id = log_query(query.question_id,query.user_id, query.channel_id,query.question, answer, query.similarity_score)
         return {"log_id": log_id, "question": query.question, "answer": answer}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
