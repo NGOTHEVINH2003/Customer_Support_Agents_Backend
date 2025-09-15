@@ -47,12 +47,12 @@ def init_db():
     conn.close()
 
 
-def log_query(question_id: str,query: str, answer: str, similarity_score: float):
+def log_query(question_id: str,user_id:str, channel_id:str,query: str, answer: str, similarity_score: float):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO query_logs (question_id, ,  question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
-        (question_id,query, similarity_score, answer, datetime.utcnow().isoformat() )
+        "INSERT INTO query_logs (question_id,channel_id,user_id, question, similarity_score, answer, created_at) VALUES (?, ?, ?, ?,?, ?, ?)",
+        (question_id, channel_id, user_id, query, similarity_score, answer, datetime.utcnow().isoformat() )
     )
     conn.commit()
     conn.close()
