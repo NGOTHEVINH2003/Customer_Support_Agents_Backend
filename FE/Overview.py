@@ -1,6 +1,47 @@
 import streamlit as st
 import plotly.express as px
 import pandas as pd
+from pathlib import Path
+import sqlite3
+import datetime
+
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
+
+def GetMetrics():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    now = datetime.datetime.now()
+
+    # Today's questions
+    today = now.date().isoformat()
+    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) = ?", (today,))
+    today_count = cur.fetchone()[0]
+
+    # This week's questions
+    startWeek = (now - datetime.timedelta(days=now.weekday())).date().isoformat()
+    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) >= ?", (startWeek,))
+    week_count = cur.fetchone()[0]
+
+    # This month's questions
+    startMonth = now.replace(day=1).date().isoformat()
+    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) >= ?", (startMonth,))
+    month_count = cur.fetchone()[0]
+
+    conn.close()
+    return today_count, week_count, month_count
+
+def getAIVsEscalated():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    
+    cur.execute("SELECT COUNT(*) FROM query_logs")
+    total = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM query_logs WHERE flagged=1")
+    escalated = cur.fetchone()[0]
+
+    conn.close()
+    ai_answered = total - escalated
+    return ai_answered, escalated
 
 st.set_page_config(
     page_title="AI Agent Monitor Dashboard", 
@@ -9,33 +50,32 @@ st.set_page_config(
 
 st.title("📊 Overview")
 
-todayQuestions, thisWeekQuestions, thisMonthQuestions, escalationRate = st.columns(4, border=True)
-with todayQuestions:
-    st.metric("Số câu hỏi hôm nay", 124)
-with thisWeekQuestions:
-    st.metric("Số câu hỏi tuần này", 850)
-with thisMonthQuestions:
-    st.metric("Số câu hỏi tháng này", 3200)
-with escalationRate:
-    st.metric("Escalation rate", "8%")
+todayQuestions, thisWeekQuestions, thisMonthQuestions = st.columns(3, border=True)
+today_count, week_count, month_count = GetMetrics()
 
-ai_vs_escalated = pd.DataFrame({
+with todayQuestions:
+    st.metric("Số câu hỏi hôm nay", today_count)
+with thisWeekQuestions:
+    st.metric("Số câu hỏi tuần này", week_count)
+with thisMonthQuestions:
+    st.metric("Số câu hỏi tháng này", month_count)
+
+answered, escalated = getAIVsEscalated()
+
+df = pd.DataFrame({
     "name": ["AI answered", "Escalated"],
-    "value": [3000, 200]
-})
+    "value": [answered, escalated]
+    })
 
 rating_dist = pd.DataFrame({
     "rating": ["1★", "2★", "3★", "4★", "5★"],
     "count": [40, 65, 180, 310, 325]
 })
 
-aiVSEscalatedPie, ratingDistBar = st.columns([1,1], border=True)
+aiVSEscalatedPie = st.columns(1, border=True)[0]
+
 with aiVSEscalatedPie:
     st.subheader("AI Answered vs Escalated")
-    fig =  px.pie(ai_vs_escalated, names="name", values="value", hole=0.5,
+    fig =  px.pie(df, names="name", values="value", hole=0.5,
                      color="name", color_discrete_map={"AI answered":"#22c55e","Escalated":"#ef4444"})
     st.plotly_chart(fig, use_container_width=True, theme=None)
-with ratingDistBar:
-    st.subheader("Distribution Rating (⭐)")
-    fig2 = px.bar(rating_dist, x="rating", y="count", labels={"count":"Feedback","rating":"Rating"}, color="rating")
-    st.plotly_chart(fig2, use_container_width=True, theme=None)
