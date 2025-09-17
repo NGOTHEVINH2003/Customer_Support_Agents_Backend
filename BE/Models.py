@@ -10,15 +10,18 @@ class Query(BaseModel):
 
 class Reaction(BaseModel):
     question_id: str
+    reaction_type: str
     reaction_name: str
 
 class IngestionLog(BaseModel):
     source: str
     document_id: str
     document_type: str
-    document_name: str
-    status: str
+    document_name: str 
     last_modified: datetime.datetime
+
+class IngestionList(BaseModel):
+    documents: List[IngestionLog]
 
 class Feedback(BaseModel):
     question_id: str
