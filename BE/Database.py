@@ -30,8 +30,7 @@ def init_db():
     )""")
 
 
-    cur.execute
-    ("""CREATE TABLE IF NOT EXISTS ingestion_logs (
+    cur.execute("""CREATE TABLE IF NOT EXISTS ingestion_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         document_id TEXT NOT NULL,
