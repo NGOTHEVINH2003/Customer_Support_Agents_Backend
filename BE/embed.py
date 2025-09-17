@@ -1,11 +1,12 @@
 # build_rag_dataset.py
 
 import os
-from langchain_community.document_loaders.googledrive import UnstructuredPDFLoader, Docx2txtLoader, TextLoader, UnstructuredMarkdownLoader
+# from langchain_community.document_loaders.googledrive import UnstructuredPDFLoader, Docx2txtLoader, TextLoader, UnstructuredMarkdownLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from Database import log_ingestion, should_ingest
+from langchain_community.document_loaders import UnstructuredPDFLoader
+from Database import upsert_log, should_ingest
 import torch
 
 
@@ -16,20 +17,20 @@ def get_vectorstore():
     vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model)
     return vectordb
 
-def Load_Document(document_type, file_name):
-    if document_type == "pdf":
-        loader = UnstructuredPDFLoader(file_name)
-    elif document_type in [ "docx", "doc"]:
-        loader = Docx2txtLoader(file_name)
-    elif document_type in ["txt", "text"]:
-        loader = TextLoader(file_name)
-    elif document_type in ["md", "markdown"]:
-        loader = UnstructuredMarkdownLoader(file_name)
-    else:
-        raise ValueError(f"Unsupported document type: {document_type}")
-    
-    documents = loader.load()
-    return documents
+
+# def Load_Document(document_type, file_name):
+#     if document_type == "pdf":
+#         loader = UnstructuredPDFLoader(file_name)
+#     elif document_type in [ "docx", "doc"]:
+#         loader = Docx2txtLoader(file_name)
+#     elif document_type in ["txt", "text"]:
+#         loader = TextLoader(file_name)
+#     elif document_type in ["md", "markdown"]:
+#         loader = UnstructuredMarkdownLoader(file_name)
+#     else:
+#         raise ValueError(f"Unsupported document type: {document_type}")
+#     documents = loader.load()
+#     return documents
 
 
 def build_chroma_from_pdf(pdf_path, persist_dir="chroma_db"):

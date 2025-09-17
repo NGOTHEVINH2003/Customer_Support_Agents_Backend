@@ -1,7 +1,7 @@
 import sqlite3
 import json
 import hashlib
-import datetime
+from datetime import datetime,timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "log.db"
@@ -50,8 +50,8 @@ def log_query(question_id: str,user_id:str, channel_id:str,query: str, answer: s
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO query_logs (question_id,channel_id,user_id, question, similarity_score, answer, created_at) VALUES (?, ?, ?, ?,?, ?, ?)",
-        (question_id, channel_id, user_id, query, similarity_score, answer, datetime.utcnow().isoformat() )
+        "INSERT INTO query_logs (question_id,channel_id,user_id, question, similarity_score, answer, timestamp) VALUES (?, ?, ?, ?,?, ?, ?)",
+        (question_id, channel_id, user_id, query, similarity_score, answer, datetime.now(timezone.utc).isoformat() )
     )
     conn.commit()
     conn.close()
@@ -59,11 +59,20 @@ def log_query(question_id: str,user_id:str, channel_id:str,query: str, answer: s
 
 
 # when an reaction is added to a message, update the thumbs up/down count
-def update_reaction_counts(question_id: int, thumbs_up: bool, thumbs_down: bool):
+def update_reaction_added(question_id: int, thumbs_up: bool, thumbs_down: bool):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE query_logs SET thumbs_up = thumbs_up + ?, thumbs_down = thumbs_down + ? WHERE question_id = ?",
+        (1 if thumbs_up else 0, 1 if thumbs_down else 0, question_id)
+    )
+    conn.commit()
+    conn.close()
+def update_reaction_removed(question_id: int, thumbs_up: bool, thumbs_down: bool):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE query_logs SET thumbs_up = thumbs_up - ?, thumbs_down = thumbs_down - ? WHERE question_id = ? AND thumbs_up > 0 AND thumbs_down > 0",
         (1 if thumbs_up else 0, 1 if thumbs_down else 0, question_id)
     )
     conn.commit()
@@ -80,7 +89,7 @@ def updated_flagged_status(question_id: int, flagged: bool):
     conn.commit()
     conn.close()
 # dictate that whether to ingest the document based on its last modified timestamp
-def should_ingest(source: str, document_id: str, last_modified: datetime.datetime) -> bool:
+def should_ingest(source: str, document_id: str, last_modified: datetime) -> bool:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
