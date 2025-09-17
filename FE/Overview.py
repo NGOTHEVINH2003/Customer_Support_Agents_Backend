@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 import datetime
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
 def GetMetrics():
     conn = sqlite3.connect(DB_PATH)
