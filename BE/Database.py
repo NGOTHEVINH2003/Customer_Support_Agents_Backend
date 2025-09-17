@@ -16,12 +16,16 @@ def init_db():
     cur = conn.cursor()
 
     cur.execute("""CREATE TABLE IF NOT EXISTS query_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT,
+        log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        question_id TEXT NOT NULL,
         question TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
         similarity_score REAL,
         answer TEXT,
         flagged INTEGER DEFAULT 0,
+        Thumps_up INTEGER DEFAULT 0,
+        Thumps_down INTEGER DEFAULT 0,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )""")
 
@@ -31,8 +35,9 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         source TEXT NOT NULL,
         document_id TEXT NOT NULL,
+        document_type TEXT,
+        document_name TEXT,
         status TEXT NOT NULL,
-        metadata TEXT,
         last_modified TIMESTAMP,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         Unique(source, document_id)
@@ -42,27 +47,40 @@ def init_db():
     conn.close()
 
 
-def log_query(query: str, answer: str, similarity_score: float):
+def log_query(question_id: str,user_id:str, channel_id:str,query: str, answer: str, similarity_score: float):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO query_logs (question, similarity_score, answer, created_at) VALUES (?, ?, ?)",
-        (query, similarity_score, answer, datetime.utcnow().isoformat() )
+        "INSERT INTO query_logs (question_id,channel_id,user_id, question, similarity_score, answer, created_at) VALUES (?, ?, ?, ?,?, ?, ?)",
+        (question_id, channel_id, user_id, query, similarity_score, answer, datetime.utcnow().isoformat() )
     )
     conn.commit()
     conn.close()
     return cursor.lastrowid
 
-def updated_flagged_status(log_id: int, flagged: bool):
+
+# when an reaction is added to a message, update the thumbs up/down count
+def update_reaction_counts(question_id: int, thumbs_up: bool, thumbs_down: bool):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE query_logs SET flagged = ? WHERE id = ?",
-        (1 if flagged else 0, log_id)
+        "UPDATE query_logs SET thumbs_up = thumbs_up + ?, thumbs_down = thumbs_down + ? WHERE question_id = ?",
+        (1 if thumbs_up else 0, 1 if thumbs_down else 0, question_id)
     )
     conn.commit()
     conn.close()
 
+# update the flagged status of a query log entry
+def updated_flagged_status(question_id: int, flagged: bool):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE query_logs SET flagged = ?  WHERE question_id = ?",
+        (1 if flagged else 0, question_id)
+    )
+    conn.commit()
+    conn.close()
+# dictate that whether to ingest the document based on its last modified timestamp
 def should_ingest(source: str, document_id: str, last_modified: datetime.datetime) -> bool:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -83,24 +101,24 @@ def should_ingest(source: str, document_id: str, last_modified: datetime.datetim
     existing_last_modified = datetime.datetime.fromisoformat(existing_last_modified)
     # if the document has been modified since last ingestion -> re-ingest
     return last_modified > existing_last_modified
-
-def log_ingestion(source: str, document_id: str, status: str, metadata: dict = None, last_modified: datetime.datetime = None):
+# log the ingestion status into the db for monitoring and version control
+def upsert_log(source, document_id, document_type, document_name, status, last_modified):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    metadata_json = json.dumps(metadata) if metadata else None
     last_modified_str = last_modified.isoformat() if last_modified else None
 
     cursor.execute(
         #if the record exists, update it; otherwise, insert a new record
-        """INSERT INTO ingestion_logs (source, document_id, status, metadata, last_modified, created_at)
+        """INSERT INTO ingestion_logs (source, document_id, document_type, document_name,  status, last_modified, created_at)
            VALUES (?, ?, ?, ?, ?, ?)
            ON CONFLICT(source, document_id) DO UPDATE SET
-               status=excluded.status,
-               metadata=excluded.metadata,
-               last_modified=excluded.last_modified,
-               created_at=excluded.created_at
+                document_type=excluded.document_type,
+                document_name=excluded.document_name,
+                status=excluded.status,
+                last_modified=excluded.last_modified,
+                created_at=excluded.created_at
         """,
-        (source, document_id, status, metadata_json, last_modified_str, datetime.utcnow().isoformat())
+        (source, document_id,document_type,document_name , status, last_modified_str, datetime.utcnow().isoformat())
     )
     conn.commit()
     conn.close()
