@@ -16,9 +16,6 @@ def get_vectorstore():
     vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model)
     return vectordb
 
-
-
-
 def Load_Document(document_type, file_name):
     if document_type == "pdf":
         loader = UnstructuredPDFLoader(file_name)
