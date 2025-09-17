@@ -18,8 +18,6 @@ def get_vectorstore():
     return vectordb
 
 
-
-
 # def Load_Document(document_type, file_name):
 #     if document_type == "pdf":
 #         loader = UnstructuredPDFLoader(file_name)
@@ -31,7 +29,6 @@ def get_vectorstore():
 #         loader = UnstructuredMarkdownLoader(file_name)
 #     else:
 #         raise ValueError(f"Unsupported document type: {document_type}")
-    
 #     documents = loader.load()
 #     return documents
 
