@@ -4,8 +4,9 @@ import pandas as pd
 from pathlib import Path
 import sqlite3
 import datetime
+from io import BytesIO
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
 
 def GetMetrics():
     conn = sqlite3.connect(DB_PATH)
@@ -43,6 +44,22 @@ def getAIVsEscalated():
     ai_answered = total - escalated
     return ai_answered, escalated
 
+def exportExcel(today_count, week_count, month_count, answered, escalated):
+    output = BytesIO()
+    
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        metrics_df = pd.DataFrame({
+            "Today": [today_count],
+            "This Week": [week_count],
+            "This Month": [month_count],
+            "AI Answered": [answered],
+            "Escalated": [escalated]
+        })
+        metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
+    
+    output.seek(0)
+    return output.getvalue()
+
 st.set_page_config(
     page_title="AI Agent Monitor Dashboard", 
     layout="wide"
@@ -79,3 +96,11 @@ with aiVSEscalatedPie:
     fig =  px.pie(df, names="name", values="value", hole=0.5,
                      color="name", color_discrete_map={"AI answered":"#22c55e","Escalated":"#ef4444"})
     st.plotly_chart(fig, use_container_width=True, theme=None)
+
+excel_file = exportExcel(today_count, week_count, month_count, answered, escalated)
+st.download_button(
+    label="📥 Tải dữ liệu Excel",
+    data=excel_file,
+    file_name="dashboard_data.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
