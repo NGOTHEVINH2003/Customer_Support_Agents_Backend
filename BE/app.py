@@ -80,6 +80,6 @@ async def reaction_added(reaction: Reaction):
             elif reaction.reaction_name == "1":
                 update_reaction_removed(reaction.question_id, thumbs_up=-1, thumbs_down=False);
         
-        return {"status": "success", "message": "Reaction recorded successfully."}
+        return {"status": "success", "message": "Reaction recorded successfully.", "reaction": reaction}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
