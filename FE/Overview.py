@@ -44,21 +44,116 @@ def getAIVsEscalated():
     ai_answered = total - escalated
     return ai_answered, escalated
 
-def exportExcel(today_count, week_count, month_count, answered, escalated):
+def GetTodayDate():
+    return datetime.date.today()
+
+def ExportDailyReport():
+    today = GetTodayDate()
+
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+        SELECT 
+            COUNT(*) as TotalQuery,
+            SUM(CASE WHEN flagged=0 THEN 1 ELSE 0 END) as AIAnswered,
+            SUM(CASE WHEN flagged=1 THEN 1 ELSE 0 END) as Escalated,
+            SUM(Thumps_up) as Like,
+            SUM(Thumps_down) as Dislike
+        FROM query_logs
+        WHERE DATE(timestamp) = ?
+    """
+    df = pd.read_sql(query, conn, params=(today,))
+    conn.close()
+
+    total = df.loc[0, "TotalQuery"]
+    ai_answered = df.loc[0, "AIAnswered"] or 0
+    escalated = df.loc[0, "Escalated"] or 0
+    like = df.loc[0, "Like"] or 0
+    dislike = df.loc[0, "Dislike"] or 0
+
+    df["Answered/Escalated Ratio(%)"] = (
+        f"{(ai_answered/total*100):.1f} : {(escalated/total*100):.1f}"
+        if total > 0 else "0:0"
+    )
+    df["Like/Dislike ratio(%)"] = (
+        f"{(like/(like+dislike)*100):.1f} : {(dislike/(like+dislike)*100):.1f}"
+        if (like+dislike) > 0 else "0:0"
+    )
+
     output = BytesIO()
-    
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        metrics_df = pd.DataFrame({
-            "Today": [today_count],
-            "This Week": [week_count],
-            "This Month": [month_count],
-            "AI Answered": [answered],
-            "Escalated": [escalated]
-        })
-        metrics_df.to_excel(writer, sheet_name="Metrics", index=False)
-    
+        sheet_name = "Daily Report"
+        df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=2)
+
+        worksheet = writer.sheets[sheet_name]
+        worksheet.write(0, 0, f"Daily Report - {today}")
+
     output.seek(0)
-    return output.getvalue()
+    filename = f"report_{today}.xlsx"
+    return output.getvalue(), filename
+
+def ExportWeeklyReport():
+    today = GetTodayDate()
+    start_week = today - datetime.timedelta(days=today.weekday())  # thứ 2
+    end_week = start_week + datetime.timedelta(days=6)             # chủ nhật
+
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+        SELECT DATE(timestamp) as Day,
+               COUNT(*) as TotalQuery,
+               SUM(CASE WHEN flagged=0 THEN 1 ELSE 0 END) as AIAnswered,
+               SUM(CASE WHEN flagged=1 THEN 1 ELSE 0 END) as Escalated,
+               SUM(Thumps_up) as Like,
+               SUM(Thumps_down) as Dislike
+        FROM query_logs
+        WHERE DATE(timestamp) BETWEEN ? AND ?
+        GROUP BY DATE(timestamp)
+        ORDER BY Day
+    """
+    df = pd.read_sql(query, conn, params=(start_week.isoformat(), end_week.isoformat()))
+    conn.close()
+
+    # Tính tỷ lệ
+    df["Answered/Escalated Ratio(%)"] = df.apply(
+        lambda r: f"{(r['AIAnswered']/r['TotalQuery']*100):.1f} : {(r['Escalated']/r['TotalQuery']*100):.1f}"
+        if r['TotalQuery']>0 else "0:0", axis=1
+    )
+    df["Like/Dislike ratio(%)"] = df.apply(
+        lambda r: f"{(r['Like']/(r['Like']+r['Dislike'])*100):.1f} : {(r['Dislike']/(r['Like']+r['Dislike'])*100):.1f}"
+        if (r['Like']+r['Dislike'])>0 else "0:0", axis=1
+    )
+
+    # Thêm tổng
+    total_row = pd.DataFrame({
+        "Day": ["total"],
+        "TotalQuery": [df["TotalQuery"].sum()],
+        "AIAnswered": [df["AIAnswered"].sum()],
+        "Escalated": [df["Escalated"].sum()],
+        "Like": [df["Like"].sum()],
+        "Dislike": [df["Dislike"].sum()],
+        "Answered/Escalated Ratio(%)": [
+            f"{(df['AIAnswered'].sum()/df['TotalQuery'].sum()*100):.1f} : {(df['Escalated'].sum()/df['TotalQuery'].sum()*100):.1f}"
+            if df["TotalQuery"].sum()>0 else "0:0"
+        ],
+        "Like/Dislike ratio(%)": [
+            f"{(df['Like'].sum()/(df['Like'].sum()+df['Dislike'].sum())*100):.1f} : {(df['Dislike'].sum()/(df['Like'].sum()+df['Dislike'].sum())*100):.1f}"
+            if (df['Like'].sum()+df['Dislike'].sum())>0 else "0:0"
+        ]
+    })
+    df = pd.concat([df, total_row], ignore_index=True)
+
+    # Xuất ra Excel 
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        sheet_name = "Weekly Report"
+        df.to_excel(writer, sheet_name=sheet_name, index=False, startrow=2)
+
+        # Ghi tiêu đề
+        worksheet = writer.sheets[sheet_name]
+        worksheet.write(0, 0, f"Weekly Report ({start_week} → {end_week})")
+
+    output.seek(0)
+    filename = f"weekly_report_{start_week}_to_{end_week}.xlsx"
+    return output.getvalue(), filename
 
 st.set_page_config(
     page_title="AI Agent Monitor Dashboard", 
@@ -84,11 +179,6 @@ df = pd.DataFrame({
     "value": [answered, escalated]
     })
 
-rating_dist = pd.DataFrame({
-    "rating": ["1★", "2★", "3★", "4★", "5★"],
-    "count": [40, 65, 180, 310, 325]
-})
-
 aiVSEscalatedPie = st.columns(1, border=True)[0]
 
 with aiVSEscalatedPie:
@@ -97,10 +187,20 @@ with aiVSEscalatedPie:
                      color="name", color_discrete_map={"AI answered":"#22c55e","Escalated":"#ef4444"})
     st.plotly_chart(fig, use_container_width=True, theme=None)
 
-excel_file = exportExcel(today_count, week_count, month_count, answered, escalated)
+excelFileToday, filenameToday = ExportDailyReport()
+
 st.download_button(
-    label="📥 Tải dữ liệu Excel",
-    data=excel_file,
-    file_name="dashboard_data.xlsx",
+    label="📥 Export Today Report",
+    data=excelFileToday,
+    file_name=filenameToday,
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+excelFileWeek, filenameWeekly = ExportWeeklyReport()
+
+st.download_button(
+    label="📥 Export This Week Report",
+    data=excelFileWeek,
+    file_name=filenameWeekly,
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
