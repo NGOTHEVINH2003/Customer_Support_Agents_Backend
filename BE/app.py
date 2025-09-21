@@ -6,6 +6,9 @@ from embed import build_chroma_from_pdf
 from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
+from smtp import SendEmail
+from pathlib import Path
+import tempfile
 
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
@@ -81,5 +84,22 @@ async def reaction_added(reaction: Reaction):
                 update_reaction_removed(reaction.question_id, thumbs_up=-1, thumbs_down=False);
         
         return {"status": "success", "message": "Reaction recorded successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/send-email")
+async def send_email(recipientEmail: str, subject: str, body: str, files: list[UploadFile] = None):
+    try:
+        attachments = []
+        if files:
+            for file in files:
+                tmp_path = Path(tempfile.gettempdir()) / file.filename
+                with open(tmp_path, "wb") as f:
+                    f.write(await file.read())
+                attachments.append(tmp_path)
+
+        SendEmail(recipientEmail=recipientEmail, subject=subject, body=body, attachments=attachments)
+
+        return {"status": "success", "message": "Email sent successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
