@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
 def GetEscalation():
     conn = sqlite3.connect(DB_PATH)
