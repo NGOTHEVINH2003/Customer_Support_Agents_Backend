@@ -9,6 +9,7 @@ import requests
 
 DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
+
 def GetTodayDate():
     return datetime.date.today()
 
