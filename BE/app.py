@@ -11,6 +11,7 @@ from pathlib import Path
 import tempfile
 from typing import List
 import shutil
+from metrics import GetMetrics
 
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
@@ -120,3 +121,20 @@ async def send_email(
     
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+@app.post("/get-metrics")
+async def get_metrics():
+    try:
+        today_count, week_count, month_count, ai_answered, escalated  = GetMetrics()
+        return {
+            "status": "success", 
+            "metrics": {
+                "today_count": today_count,
+                "week_count": week_count,
+                "month_count": month_count,
+                "ai_answered": ai_answered,
+                "escalated": escalated
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

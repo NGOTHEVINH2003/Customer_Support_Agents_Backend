@@ -5,44 +5,10 @@ from pathlib import Path
 import sqlite3
 import datetime
 from io import BytesIO
+import requests
 
 DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
-def GetMetrics():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    now = datetime.datetime.now()
-
-    # Today's questions
-    today = now.date().isoformat()
-    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) = ?", (today,))
-    today_count = cur.fetchone()[0]
-
-    # This week's questions
-    startWeek = (now - datetime.timedelta(days=now.weekday())).date().isoformat()
-    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) >= ?", (startWeek,))
-    week_count = cur.fetchone()[0]
-
-    # This month's questions
-    startMonth = now.replace(day=1).date().isoformat()
-    cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) >= ?", (startMonth,))
-    month_count = cur.fetchone()[0]
-
-    conn.close()
-    return today_count, week_count, month_count
-
-def getAIVsEscalated():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    
-    cur.execute("SELECT COUNT(*) FROM query_logs")
-    total = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM query_logs WHERE flagged=1")
-    escalated = cur.fetchone()[0]
-
-    conn.close()
-    ai_answered = total - escalated
-    return ai_answered, escalated
 
 def GetTodayDate():
     return datetime.date.today()
@@ -155,6 +121,8 @@ def ExportWeeklyReport():
     filename = f"weekly_report_{start_week}_to_{end_week}.xlsx"
     return output.getvalue(), filename
 
+api_url = "http://127.0.0.1:8000/get-metrics"
+
 st.set_page_config(
     page_title="AI Agent Monitor Dashboard", 
     layout="wide"
@@ -163,7 +131,22 @@ st.set_page_config(
 st.title("📊 Overview")
 
 todayQuestions, thisWeekQuestions, thisMonthQuestions = st.columns(3, border=True)
-today_count, week_count, month_count = GetMetrics()
+try: 
+    respone = requests.post(api_url)
+    if respone.status_code == 200:
+        data = respone.json()
+        metrics = data["metrics"]
+        today_count = metrics["today_count"]
+        week_count = metrics["week_count"]
+        month_count = metrics["month_count"]
+        answered = metrics["ai_answered"]
+        escalated = metrics["escalated"]
+    else:
+        st.error(f"Error fetching metrics: {respone.status_code} - {respone.text}")
+        today_count, week_count, month_count = 0, 0, 0
+except Exception as e:
+    st.error(f"Exception occurred: {str(e)}")
+    today_count, week_count, month_count = 0, 0, 0
 
 with todayQuestions:
     st.metric("Số câu hỏi hôm nay", today_count)
@@ -171,8 +154,6 @@ with thisWeekQuestions:
     st.metric("Số câu hỏi tuần này", week_count)
 with thisMonthQuestions:
     st.metric("Số câu hỏi tháng này", month_count)
-
-answered, escalated = getAIVsEscalated()
 
 df = pd.DataFrame({
     "name": ["AI answered", "Escalated"],
