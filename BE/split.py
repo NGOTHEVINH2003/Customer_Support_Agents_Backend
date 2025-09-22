@@ -2,13 +2,6 @@ import os
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import Destination
 
-# File pdf need to split
-input_file = r"troubleshoot-windows-server.pdf"
-# Output folder
-output_folder = "newdata_server"
-
-os.makedirs(output_folder, exist_ok=True)
-
 def sanitize_filename(name: str) -> str:
     """Loại bỏ ký tự không hợp lệ trong tên file"""
     return "".join(c for c in name if c.isalnum() or c in (' ', '_', '-')).rstrip()
@@ -23,65 +16,76 @@ def flatten_outlines(outlines):
             flat.append(o)
     return flat
 
-file_name = os.path.basename(input_file)
-print(f"\nProcessing file: {file_name}")
+def split_pdf_by_outline(input_file: str, output_root: str = "data_split"):
+    file_name = os.path.basename(input_file)
+    base_name = os.path.splitext(file_name)[0]
 
-reader = PdfReader(input_file)
+    # Nếu không truyền output_root thì folder output = cùng cấp với file gốc
+    if output_root is None:
+        output_root = os.path.dirname(input_file)
 
-try:
-    outlines = reader.outline
-except Exception:
-    outlines = []
+    # Folder xuất ra = <output_root>/<tên file pdf>
+    file_output_dir = os.path.join(output_root, base_name)
+    os.makedirs(file_output_dir, exist_ok=True)
 
-if not outlines:
-    print("This file has no outline/bookmark.")
-    exit()
+    print(f"\nProcessing file: {file_name}")
+    reader = PdfReader(input_file)
 
-flat_outlines = flatten_outlines(outlines)
-
-# Filter out outlines without pages
-valid_outlines = []
-for o in flat_outlines:
     try:
-        page_num = reader.get_destination_page_number(o)
-        if page_num is not None:
-            valid_outlines.append(o)
+        outlines = reader.outline
     except Exception:
-        continue
+        outlines = []
 
-if not valid_outlines:
-    print("No valid outlines found for splitting.")
-    exit()
+    if not outlines:
+        print("This file has no outline/bookmark.")
+        return
 
-print(f"Found {len(valid_outlines)} valid outlines:")
-for i, outline in enumerate(valid_outlines, 1):
-    print(f"      {i}. {outline.title}")
+    flat_outlines = flatten_outlines(outlines)
 
-# Create subfolder for this file
-base_name = os.path.splitext(file_name)[0]
-file_output_dir = os.path.join(output_folder, base_name)
-os.makedirs(file_output_dir, exist_ok=True)
+    # Lọc những outline có page hợp lệ
+    valid_outlines = []
+    for o in flat_outlines:
+        try:
+            page_num = reader.get_destination_page_number(o)
+            if page_num is not None:
+                valid_outlines.append(o)
+        except Exception:
+            continue
 
-# Split file by outline
-for i, outline in enumerate(valid_outlines, 1):
-    title = sanitize_filename(outline.title)
-    start_page = reader.get_destination_page_number(outline)
+    if not valid_outlines:
+        print("No valid outlines found for splitting.")
+        return
 
-    if i < len(valid_outlines):
-        end_page = reader.get_destination_page_number(valid_outlines[i])
-    else:
-        end_page = len(reader.pages)
+    print(f"Found {len(valid_outlines)} valid outlines:")
+    for i, outline in enumerate(valid_outlines, 1):
+        print(f"      {i}. {outline.title}")
 
-    # Protect if end_page is less than start_page
-    if end_page is None or start_page is None or end_page <= start_page:
-        continue
+    # Tách file theo outline
+    for i, outline in enumerate(valid_outlines, 1):
+        title = sanitize_filename(outline.title)
+        start_page = reader.get_destination_page_number(outline)
 
-    writer = PdfWriter()
-    for p in range(start_page, end_page):
-        writer.add_page(reader.pages[p])
+        if i < len(valid_outlines):
+            end_page = reader.get_destination_page_number(valid_outlines[i])
+        else:
+            end_page = len(reader.pages)
 
-    output_path = os.path.join(file_output_dir, f"{i:02d}_{title}.pdf")
-    with open(output_path, "wb") as f:
-        writer.write(f)
+        # Bảo vệ khi end_page < start_page
+        if end_page is None or start_page is None or end_page <= start_page:
+            continue
 
-    print(f"Exported: {output_path}")
+        writer = PdfWriter()
+        for p in range(start_page, end_page):
+            writer.add_page(reader.pages[p])
+
+        output_path = os.path.join(file_output_dir, f"{i:02d}_{title}.pdf")
+        with open(output_path, "wb") as f:
+            writer.write(f)
+
+        print(f"Exported: {output_path}")
+
+# -------------------- RUN --------------------
+if __name__ == "__main__":
+    input_file = r"troubleshoot-windows-server.pdf"
+    split_pdf_by_outline(input_file)
+    

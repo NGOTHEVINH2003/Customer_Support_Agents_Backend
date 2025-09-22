@@ -2,7 +2,8 @@ import os
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 from bot import ask_question
-from embed import build_chroma_from_pdf
+from embed import build_dataset_from_drive_file
+from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
 from smtp import SendEmail
@@ -33,7 +34,7 @@ async def ingest_data_test(file: UploadFile= File(...)):
         file_location = f"temp_{file.filename}"
         with open(file_location, "wb") as f:
             f.write(await file.read())
-        build_chroma_from_pdf(file_location)    
+        build_dataset_from_drive_file(file_location)    
         os.remove(file_location)
         return {"status": "success", "message": f"Data from {file.filename} ingested successfully."}
     except Exception as e:
@@ -52,7 +53,9 @@ async def query_endpoint(query: Query):
 async def ingest_endpoint(payload: IngestionList):
     try:
         # build_chroma_from_pdf(ingestion_log.document_id)
-        return {"received_documents": len(payload.documents), "files": payload.documents}
+        build_dataset_from_drive_file(payload.documents[1].document_id, payload.documents[1].document_name)
+
+        return {"received_documents": len(payload.documents), "files": payload.documents[1]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
@@ -84,7 +87,7 @@ async def reaction_added(reaction: Reaction):
             elif reaction.reaction_name == "1":
                 update_reaction_removed(reaction.question_id, thumbs_up=-1, thumbs_down=False);
         
-        return {"status": "success", "message": "Reaction recorded successfully."}
+        return {"status": "success", "message": "Reaction recorded successfully.", "reaction": reaction}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
