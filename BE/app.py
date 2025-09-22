@@ -92,14 +92,12 @@ async def reaction_added(reaction: Reaction):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 @app.post("/send-email")
 async def send_email(
-    recipientEmails: List[str],
     subject: str,
     body: str, 
     files: list[UploadFile] = None,
-    cc: List[str] = None,
-    bcc: List[str] = None
 ):
     temp_dir = Path(tempfile.mkdtemp())
     attachments = []
@@ -112,7 +110,7 @@ async def send_email(
                     f.write(await file.read())
                 attachments.append(tmp_path)
 
-        SendEmail(recipientEmails=recipientEmails, subject=subject, body=body, attachments=attachments, cc=cc, bcc=bcc)
+        SendEmail(subject=subject, body=body, attachments=attachments)
 
         return {"status": "success", "message": "Email sent successfully."}
     
@@ -125,7 +123,7 @@ async def send_email(
 @app.post("/get-metrics")
 async def get_metrics():
     try:
-        today_count, week_count, month_count, ai_answered, escalated  = GetMetrics()
+        today_count, week_count, month_count, ai_answered, escalated, escalated_table  = GetMetrics()
         return {
             "status": "success", 
             "metrics": {
@@ -133,7 +131,8 @@ async def get_metrics():
                 "week_count": week_count,
                 "month_count": month_count,
                 "ai_answered": ai_answered,
-                "escalated": escalated
+                "escalated": escalated,
+                "escalated_table": escalated_table
             }
         }
     except Exception as e:

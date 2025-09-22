@@ -14,9 +14,9 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 def SendEmail(
-    recipientEmails, 
     subject, 
     body, 
     attachments: list = None, 
@@ -26,11 +26,8 @@ def SendEmail(
     try:
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
-        msg['To'] = ", ".join(recipientEmails) if isinstance(recipientEmails, list) else recipientEmails
+        msg['To'] = ADMIN_EMAIL
         msg['Subject'] = subject
-
-        if cc:
-            msg['Cc'] = ", ".join(cc)
 
         msg.attach(MIMEText(body, 'plain'))
 
@@ -47,20 +44,12 @@ def SendEmail(
                             f'attachment; filename={file_path.name}'
                         )
                         msg.attach(part)
-
-        allRecipients = []
-        for recipent in [recipientEmails, cc, bcc]:
-            if recipent:
-                if isinstance(recipent, list):
-                    allRecipients.extend(recipent)
-                else:
-                    allRecipients.append(recipent)
         
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, allRecipients, msg.as_string())
+            server.sendmail(EMAIL_ADDRESS, ADMIN_EMAIL, msg.as_string())
 
         print("Email sent successfully")
         

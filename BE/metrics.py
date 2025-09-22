@@ -1,4 +1,5 @@
 import datetime
+import pandas as pd
 from Database import get_db_connection
 
 def GetMetrics():
@@ -27,5 +28,8 @@ def GetMetrics():
     escalated = cur.fetchone()[0]
     ai_answered = total - escalated
 
+    query = "SELECT question FROM query_logs WHERE flagged=1"
+    escalated_table = pd.read_sql(query, conn)
+
     conn.close()
-    return today_count, week_count, month_count, ai_answered, escalated
+    return today_count, week_count, month_count, ai_answered, escalated, escalated_table
