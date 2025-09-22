@@ -15,12 +15,22 @@ SMTP_PORT = 587
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
-def SendEmail(recipientEmail, subject, body, attachments: list = None):
+def SendEmail(
+    recipientEmails, 
+    subject, 
+    body, 
+    attachments: list = None, 
+    cc: list = None, 
+    bcc: list = None
+    ):
     try:
         msg = MIMEMultipart()
         msg['From'] = EMAIL_ADDRESS
-        msg['To'] = recipientEmail
+        msg['To'] = ", ".join(recipientEmails) if isinstance(recipientEmails, list) else recipientEmails
         msg['Subject'] = subject
+
+        if cc:
+            msg['Cc'] = ", ".join(cc)
 
         msg.attach(MIMEText(body, 'plain'))
 
@@ -37,18 +47,22 @@ def SendEmail(recipientEmail, subject, body, attachments: list = None):
                             f'attachment; filename={file_path.name}'
                         )
                         msg.attach(part)
+
+        allRecipients = []
+        for recipent in [recipientEmails, cc, bcc]:
+            if recipent:
+                if isinstance(recipent, list):
+                    allRecipients.extend(recipent)
+                else:
+                    allRecipients.append(recipent)
         
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_ADDRESS, recipientEmail, msg.as_string())
+            server.sendmail(EMAIL_ADDRESS, allRecipients, msg.as_string())
+
         print("Email sent successfully")
+        
     except Exception as e:
         print(f"Error sending email: {e}")
-
-if __name__ == "__main__":
-    recipeint = "nddung151203@gmail.com"
-    subject = "Test Email"
-    body = "This is a test email sent from Python."
-    SendEmail(recipeint, subject, body)
