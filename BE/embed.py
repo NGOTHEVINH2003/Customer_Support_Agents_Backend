@@ -1,67 +1,150 @@
-# build_rag_dataset.py
-
 import os
-# from langchain_community.document_loaders.googledrive import UnstructuredPDFLoader, Docx2txtLoader, TextLoader, UnstructuredMarkdownLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_community.document_loaders import UnstructuredPDFLoader
-from Database import upsert_log, should_ingest
 import torch
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from langchain_community.document_loaders import UnstructuredPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from pypdf import PdfReader, PdfWriter
+from split import split_pdf_by_outline
+
+# ==== CONFIG ====
+CREDENTIALS_FILE = "Credential.json"   # service account JSON
+SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 
-def get_vectorstore():
-    persist_dir = "../chroma_db/"
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2", model_kwargs={"device": device} )
-    vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model)
-    return vectordb
+# ===================== GOOGLE DRIVE AUTH =====================
+def init_gdrive():
+    creds = service_account.Credentials.from_service_account_file(
+        CREDENTIALS_FILE, scopes=SCOPES
+    )
+    service = build("drive", "v3", credentials=creds)
+    return service
 
 
-# def Load_Document(document_type, file_name):
-#     if document_type == "pdf":
-#         loader = UnstructuredPDFLoader(file_name)
-#     elif document_type in [ "docx", "doc"]:
-#         loader = Docx2txtLoader(file_name)
-#     elif document_type in ["txt", "text"]:
-#         loader = TextLoader(file_name)
-#     elif document_type in ["md", "markdown"]:
-#         loader = UnstructuredMarkdownLoader(file_name)
-#     else:
-#         raise ValueError(f"Unsupported document type: {document_type}")
-#     documents = loader.load()
-#     return documents
+def list_drive_files(service, mime_type="application/pdf"):
+    """Lấy danh sách file PDF"""
+    results = service.files().list(
+        q=f"mimeType='{mime_type}' and trashed=false",
+        pageSize=1000,
+        fields="files(id, name)"
+    ).execute()
+    return results.get("files", [])
 
 
-def build_chroma_from_pdf(pdf_path, persist_dir="chroma_db"):
-    # Load PDF
-    loader = UnstructuredPDFLoader(pdf_path)
-    documents = loader.load()
-    print(f"Number Page of PDF: {len(documents)}")
+def download_from_gdrive_file(service, file_id, save_path: str):
+    """Download file từ Google Drive"""
+    from googleapiclient.http import MediaIoBaseDownload
+    import io
 
-    # Chunking
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)
-    docs = splitter.split_documents(documents)
-    print(f"Chunks after splitting: {len(docs)}")
+    request = service.files().get_media(fileId=file_id)
+    fh = io.FileIO(save_path, "wb")
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+        if status:
+            print(f"Download {int(status.progress() * 100)}%.")
+    print(f"Downloaded to {save_path}")
+    return save_path
 
-    # Embedding model
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-    # Save into ChromaDB
-    vectordb = Chroma.from_documents(docs, embeddings, persist_directory=persist_dir)
+# ===================== RAG PIPELINE =====================
+def process_with_unstructured(file_path: str):
+    if output_dir is None:
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        output_dir = os.path.join(os.path.dirname(file_path), base_name)
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Splitting {file_path} by outline...")
+    split_files = split_pdf_by_outline(file_path, output_dir)
+
+    all_chunks = []
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1500,
+        chunk_overlap=300,
+        separators=["\n# ", "\n## ", "\n### ", "\n", " ", ""]
+    )
+
+    for pdf_file in split_files:
+        try:
+            loader = UnstructuredPDFLoader(pdf_file)
+            docs = loader.load()
+
+            if not docs:
+                print(f"⚠️ No text extracted from {pdf_file}")
+                continue
+
+            split_docs = splitter.split_documents(docs)
+            all_chunks.extend(split_docs)
+            print(f"{os.path.basename(pdf_file)} → {len(split_docs)} chunks")
+
+        except Exception as e:
+            print(f"Error processing {pdf_file}: {e}")
+
+    print(f"Total chunks from {file_path}: {len(all_chunks)}")
+    return all_chunks
+
+
+def embed_dataset(docs, persist_directory="db"):
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"}
+    )
+    vectordb = Chroma.from_documents(
+        documents=docs,
+        embedding=embeddings,
+        persist_directory=persist_directory
+    )
     vectordb.persist()
-    print(f"Saved dataset in: {persist_dir}")
-
     return vectordb
 
 
+def build_dataset_from_drive_file(
+    file_id, file_name, service = init_gdrive(),
+    persist_directory="db", tmp_dir="tmp"
+):
+    # 1. Download PDF từ Google Drive
+    os.makedirs(tmp_dir, exist_ok=True)
+    local_path = os.path.join(tmp_dir, file_name)
+    download_from_gdrive_file(service, file_id, local_path)
+
+    # 2. Tạo folder riêng để lưu PDF đã tách
+    file_base = os.path.splitext(file_name)[0]
+    split_dir = os.path.join(tmp_dir, file_base)
+    os.makedirs(split_dir, exist_ok=True)
+
+    # 3. Tách PDF theo outline
+    split_files = split_pdf_by_outline(local_path, split_dir)
+
+    # 4. Embed từng file PDF đã tách
+    for split_pdf in split_files:
+        docs = process_with_unstructured(split_pdf)
+        print(f"Chunks from {os.path.basename(split_pdf)}: {len(docs)}")
+        embed_dataset(docs, persist_directory=persist_directory)
+
+
+# ===================== MAIN =====================
 if __name__ == "__main__":
-    data_folder = "C:\\Users\\ADMIN\\Desktop\\Data\\test_chunking"
     db_dir = "chroma_db"
+    tmp_dir = "tmp_files"
 
-    pdf_files = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith(".pdf")]
-    print(f"Found {len(pdf_files)} PDF files.")
+    # B1: Kết nối Google Drive
+    service = init_gdrive()
 
-    for pdf_file in pdf_files[:5]:  # Embed up to 5 files
-        print(f"\nProcessing: {pdf_file}")
-        build_chroma_from_pdf(pdf_file, db_dir)
+    # B2: Lấy danh sách toàn bộ file PDF trong Drive
+    files = list_drive_files(service, mime_type="application/pdf")
+    print(f"Found {len(files)} PDF files in Google Drive.")
+
+    # B3: Xử lý từng file
+    for idx, f in enumerate(files, start=1):
+        print(f"\nProcessing {idx}/{len(files)}: {f['name']} ({f['id']})")
+        build_dataset_from_drive_file(
+            service,
+            f["id"],
+            f["name"],
+            persist_directory=db_dir,
+            tmp_dir=tmp_dir
+        )
