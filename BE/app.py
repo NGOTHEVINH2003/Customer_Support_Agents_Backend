@@ -1,9 +1,8 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse
 from bot import ask_question
 from embed import build_chroma_from_pdf
-from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
 from smtp import SendEmail
