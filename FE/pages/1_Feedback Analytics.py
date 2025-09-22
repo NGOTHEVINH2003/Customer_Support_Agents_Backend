@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
 # Lấy dữ liệu Negative Feedback theo ngày
 def getNegativeFeedbackTrend():

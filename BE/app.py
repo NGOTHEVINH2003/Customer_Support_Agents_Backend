@@ -1,11 +1,16 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import RedirectResponse
 from bot import ask_question
 from embed import build_dataset_from_drive_file
 from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
+from smtp import SendEmail
+from pathlib import Path
+import tempfile
+from typing import List
+import shutil
 
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
@@ -85,3 +90,33 @@ async def reaction_added(reaction: Reaction):
         return {"status": "success", "message": "Reaction recorded successfully.", "reaction": reaction}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/send-email")
+async def send_email(
+    recipientEmails: List[str],
+    subject: str,
+    body: str, 
+    files: list[UploadFile] = None,
+    cc: List[str] = None,
+    bcc: List[str] = None
+):
+    temp_dir = Path(tempfile.mkdtemp())
+    attachments = []
+
+    try:
+        if files:
+            for file in files:
+                tmp_path = temp_dir / file.filename
+                with open(tmp_path, "wb") as f:
+                    f.write(await file.read())
+                attachments.append(tmp_path)
+
+        SendEmail(recipientEmails=recipientEmails, subject=subject, body=body, attachments=attachments, cc=cc, bcc=bcc)
+
+        return {"status": "success", "message": "Email sent successfully."}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)

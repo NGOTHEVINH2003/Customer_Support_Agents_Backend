@@ -6,7 +6,7 @@ import sqlite3
 import datetime
 from io import BytesIO
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\FE\log.db")
+DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
 
 def GetMetrics():
     conn = sqlite3.connect(DB_PATH)
