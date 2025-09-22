@@ -75,3 +75,5 @@ venv.bak/
 # integration test artifacts
 data_map*
 \[('_type', 'fake'), ('stop', None)]
+
+Credential.json
