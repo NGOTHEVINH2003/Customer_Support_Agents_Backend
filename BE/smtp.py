@@ -4,7 +4,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from pathlib import Path
 from dotenv import load_dotenv
 
 
@@ -17,37 +16,37 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 
 def SendEmail(
-    subject, 
-    body, 
-    attachments: list = None, 
-    cc: list = None, 
-    bcc: list = None
+    reportType,
+    file_stream,
+    startDate,
+    endDate = None,
     ):
     try:
         msg = MIMEMultipart()
+        
+
+        if reportType == "daily":
+            subject = f"Daily Report - {startDate.strftime('%Y-%m-%d')}"
+        else:
+            subject = f"Weekly Report - {startDate.strftime('%Y-%m-%d')} to {endDate.strftime('%Y-%m-%d')}"
+
         msg['From'] = EMAIL_ADDRESS
         msg['To'] = ADMIN_EMAIL
         msg['Subject'] = subject
 
-        msg.attach(MIMEText(body, 'plain'))
+        body = MIMEText("Attached is the requested report.", 'plain')
+        msg.attach(body)
 
-        if attachments:
-            for file_path in attachments:
-                file_path = Path(file_path)
-                if file_path.exists():
-                    with open(file_path, "rb") as f:
-                        part = MIMEBase('application', 'octet-stream')
-                        part.set_payload(f.read())
-                        encoders.encode_base64(part)
-                        part.add_header(
-                            'Content-Disposition', 
-                            f'attachment; filename={file_path.name}'
-                        )
-                        msg.attach(part)
-        
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(file_stream.read())
+        encoders.encode_base64(part)
+        filename = f"{reportType}_report.xlsx"
+        part.add_header("Content-Disposition", f"attachment; filename= {filename}")
+        msg.attach(part)
+
         context = ssl.create_default_context()
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
+            server.starttls(context=context)
             server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
             server.sendmail(EMAIL_ADDRESS, ADMIN_EMAIL, msg.as_string())
 

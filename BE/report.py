@@ -31,8 +31,6 @@ def QueryDailyData():
     """
     df = pd.read_sql(query, conn, params=(today,))
     conn.close()
-    df = QueryDailyData()
-
     total = df.loc[0, "TotalQuery"]
     ai_answered = df.loc[0, "AIAnswered"] or 0
     escalated = df.loc[0, "Escalated"] or 0
@@ -68,7 +66,6 @@ def QueryWeeklyData():
     df = pd.read_sql(query, conn, params=(start_week.isoformat(), end_week.isoformat()))
     conn.close()
 
-    df = QueryWeeklyData()
     start_week, end_week = GetWeekRange()
     # Tính tỷ lệ
     df["Answered/Escalated Ratio(%)"] = df.apply(
