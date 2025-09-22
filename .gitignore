@@ -35,7 +35,10 @@ MANIFEST
 #
 # That action recommends adding this gitignore to prevent accidentally committing keys.
 gha-creds-*.json
-
+*/Credential.json
+*/Credentials.json
+Credential.json
+Credentials.json
 
 # Logs
 pip-log.txt
