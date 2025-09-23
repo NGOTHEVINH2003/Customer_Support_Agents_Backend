@@ -1,28 +1,20 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import plotly.express as px
-from pathlib import Path
+import requests
 
-DB_PATH = Path(r"E:\Python\Customer_Support_Agents_Backend\BE\log.db")
+api_url = "http://127.0.0.1:8000/get-negative-feedback-trend"
 
-# Lấy dữ liệu Negative Feedback theo ngày
-def getNegativeFeedbackTrend():
-    conn = sqlite3.connect(DB_PATH)
-    query = """
-        SELECT DATE(timestamp) as Day, SUM(Thumps_down) as Negative_Feedback
-        FROM query_logs
-        GROUP BY DATE(timestamp)
-        ORDER BY Day
-    """
-    df = pd.read_sql(query, conn)
-    conn.close()
-    return df
-
-st.title("📉 Feedback Analytics")
-
-# Lấy dữ liệu
-df = getNegativeFeedbackTrend()
+try:
+    response = requests.post(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame(data["data"])
+    else:
+        st.error("Lỗi khi lấy dữ liệu từ API.")
+except Exception as e:
+    st.error(f"Exception occurred: {str(e)}")
+    df = pd.DataFrame()
 
 if df.empty:
     st.warning("⚠️ Chưa có dữ liệu Negative Feedback trong DB.")
