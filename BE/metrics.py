@@ -46,3 +46,19 @@ def GetNegativeFeedbackTrend():
     df = pd.read_sql(query, conn)
     conn.close()
     return df
+
+def GetIngestionHistory():
+    conn = get_db_connection()
+    query = """
+        SELECT document_name as 'Tên tài liệu',
+               source as 'Nguồn',
+               DATETIME(last_modified) as 'Lần cuối sửa',
+               DATETIME(created_at) as 'Ngày tải lên',
+               status as 'Trạng thái'
+        FROM ingestion_logs
+        ORDER BY last_modified DESC
+        LIMIT 10
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
