@@ -5,6 +5,8 @@ import requests
 
 api_url = "http://127.0.0.1:8000/get-negative-feedback-trend"
 
+df = pd.DataFrame()
+
 try:
     response = requests.post(api_url)
     if response.status_code == 200:
@@ -14,7 +16,8 @@ try:
         st.error("Lỗi khi lấy dữ liệu từ API.")
 except Exception as e:
     st.error(f"Exception occurred: {str(e)}")
-    df = pd.DataFrame()
+    
+st.title("📊 Feedback Analytics")
 
 if df.empty:
     st.warning("⚠️ Chưa có dữ liệu Negative Feedback trong DB.")

@@ -1,7 +1,5 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-from pathlib import Path
 import requests
 
 api_url = "http://127.0.0.1:8000/get-metrics"
