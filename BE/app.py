@@ -7,7 +7,7 @@ from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
 from smtp import SendEmail
-from metrics import GetMetrics, GetNegativeFeedbackTrend, GetIngestionHistory
+from metrics import GetMetrics, GetNegativeFeedbackTrend, GetIngestionHistory, ShowHardQuestions
 from report import QueryDailyData, QueryWeeklyData, CreateReport, GetToday, GetWeekRange
 
 
@@ -149,3 +149,15 @@ async def get_ingestion_history():
         return JSONResponse(content={"status": "success", "data": data})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/show-hard-questions")
+async def show_hard_questions():
+    try:
+        df = ShowHardQuestions()
+        if df.empty:
+            return JSONResponse(content={"status": "success", "data": []})
+        data = df.to_dict(orient="records")
+        return JSONResponse(content={"status": "success", "data": data})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    

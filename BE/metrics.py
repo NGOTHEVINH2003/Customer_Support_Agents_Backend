@@ -62,3 +62,24 @@ def GetIngestionHistory():
     df = pd.read_sql(query, conn)
     conn.close()
     return df
+
+def ShowHardQuestions():
+    conn = get_db_connection()
+    query = """
+        SELECT 
+            question,
+            COUNT(*) AS total_asked,
+            MAX(timestamp) AS last_asked,
+            CASE 
+                WHEN SUM(flagged) > 0 
+                    OR SUM(CASE WHEN similarity_score < 0.5 THEN 1 ELSE 0 END) > 0
+                    OR SUM(CASE WHEN Thumps_down > Thumps_up THEN 1 ELSE 0 END) > 0
+                THEN 'Yes'
+                ELSE 'No'
+            END AS escalated
+        FROM query_logs
+        GROUP BY question;
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
