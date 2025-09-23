@@ -128,9 +128,6 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 Overview")
-
-todayQuestions, thisWeekQuestions, thisMonthQuestions = st.columns(3, border=True)
 try: 
     respone = requests.post(api_url)
     if respone.status_code == 200:
@@ -147,6 +144,10 @@ try:
 except Exception as e:
     st.error(f"Exception occurred: {str(e)}")
     today_count, week_count, month_count = 0, 0, 0
+
+st.title("📊 Overview")
+
+todayQuestions, thisWeekQuestions, thisMonthQuestions = st.columns(3, border=True)
 
 with todayQuestions:
     st.metric("Số câu hỏi hôm nay", today_count)
