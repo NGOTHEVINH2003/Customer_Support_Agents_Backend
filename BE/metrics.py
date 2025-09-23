@@ -22,6 +22,7 @@ def GetMetrics():
     cur.execute("SELECT COUNT(*) FROM query_logs WHERE DATE(timestamp) >= ?", (startMonth,))
     month_count = cur.fetchone()[0]
 
+    # AI answered and escalated
     cur.execute("SELECT COUNT(*) FROM query_logs")
     total = cur.fetchone()[0]
     cur.execute("SELECT COUNT(*) FROM query_logs WHERE flagged=1")
@@ -33,3 +34,15 @@ def GetMetrics():
 
     conn.close()
     return today_count, week_count, month_count, ai_answered, escalated, escalated_table
+
+def GetNegativeFeedbackTrend():
+    conn = get_db_connection()
+    query = """
+        SELECT DATE(timestamp) as Day, SUM(Thumps_down) as Negative_Feedback
+        FROM query_logs
+        GROUP BY DATE(timestamp)
+        ORDER BY Day
+    """
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
