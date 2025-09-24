@@ -1,5 +1,20 @@
 import streamlit as st
 import pandas as pd
+import requests
+
+api_url = "http://127.0.0.1:8000/get-ingestion-history"
+
+df = pd.DataFrame()
+
+try:
+    response = requests.post(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame(data["data"])
+    else:
+        st.error("Lỗi khi lấy dữ liệu từ API.")
+except Exception as e:
+    st.error(f"Exception occurred: {str(e)}")
 
 st.title("📂 Ingestion / Data Status")
 
@@ -11,17 +26,8 @@ for uploaded_file in uploaded_files:
     df = pd.read_csv(uploaded_file)
     st.write(df)
 
-st.subheader("📜 Lịch sử ingest docs")
-st.table({
-    "Tên tài liệu": ["Doc1", "Doc2", "Doc3"],
-    "Nguồn": ["PDF", "Google Docs", "Notion"],
-    "Ngày": ["2025-09-07", "2025-09-08", "2025-09-09"],
-    "Trạng thái": ["Thành công", "Thất bại", "Thành công"]
-})
-
-st.subheader("⚙️ Cron Job Status")
-st.table({
-    "Job": ["Job 1", "Job 2", "Job 3"],
-    "Lần chạy cuối": ["2025-09-07 10:00", "2025-09-07 11:00", "2025-09-07 12:00"],
-    "Kết quả": ["Thành công", "Thất bại", "Thành công"]
-})
+if df.empty:
+    st.info("✅ Chưa có dữ liệu ingestion trong DB.")
+else:
+    st.subheader("Lịch sử ingestion")
+    st.dataframe(df)

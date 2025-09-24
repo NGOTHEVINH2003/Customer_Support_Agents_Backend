@@ -1,17 +1,14 @@
 import os
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import RedirectResponse, JSONResponse
 from bot import ask_question
 from embed import build_dataset_from_drive_file
 from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
 from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed, should_ingest, upsert_log
 from smtp import SendEmail
-from pathlib import Path
-import tempfile
-from typing import List
-import shutil
-from metrics import GetMetrics
+from metrics import GetMetrics, GetNegativeFeedbackTrend, GetIngestionHistory, ShowHardQuestions
+from report import QueryDailyData, QueryWeeklyData, CreateReport, GetToday, GetWeekRange
 
 
 app = FastAPI(title = "Windows Troubleshooting QA API")
@@ -95,41 +92,32 @@ async def reaction_added(reaction: Reaction):
         return {"status": "success", "message": "Reaction recorded successfully.", "reaction": reaction}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @app.post("/send-email")
-async def send_email(
-    recipientEmails: List[str],
-    subject: str,
-    body: str, 
-    files: list[UploadFile] = None,
-    cc: List[str] = None,
-    bcc: List[str] = None
-):
-    temp_dir = Path(tempfile.mkdtemp())
-    attachments = []
-
+def send_email(reportType: str):
     try:
-        if files:
-            for file in files:
-                tmp_path = temp_dir / file.filename
-                with open(tmp_path, "wb") as f:
-                    f.write(await file.read())
-                attachments.append(tmp_path)
+        if reportType == "daily":
+            df = QueryDailyData()
+            today = GetToday()
+            start_week = end_week = today
+        else:
+            df = QueryWeeklyData()
+            start_week, end_week = GetWeekRange()
+        
+        if df.empty:
+            raise HTTPException(status_code=404, detail="No data available for the specified period.")
+        
+        excelFile = CreateReport(df)
+        SendEmail(reportType, excelFile, start_week, end_week if reportType == "weekly" else None)
 
-        SendEmail(recipientEmails=recipientEmails, subject=subject, body=body, attachments=attachments, cc=cc, bcc=bcc)
-
-        return {"status": "success", "message": "Email sent successfully."}
-    
+        return {"message": f"{reportType.capitalize()} report sent successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
 
 @app.post("/get-metrics")
 async def get_metrics():
     try:
-        today_count, week_count, month_count, ai_answered, escalated  = GetMetrics()
+        today_count, week_count, month_count, ai_answered, escalated, escalated_table  = GetMetrics()
         return {
             "status": "success", 
             "metrics": {
@@ -137,8 +125,43 @@ async def get_metrics():
                 "week_count": week_count,
                 "month_count": month_count,
                 "ai_answered": ai_answered,
-                "escalated": escalated
+                "escalated": escalated,
+                "escalated_table": escalated_table
             }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/get-negative-feedback-trend")
+async def get_negative_feedback_trend():
+    try:
+        df = GetNegativeFeedbackTrend()
+        if df.empty:
+            return JSONResponse(content={"status": "success", "data": []})
+        data = df.to_dict(orient="records")
+        return JSONResponse(content={"status": "success", "data": data})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/get-ingestion-history")
+async def get_ingestion_history():
+    try:
+        df = GetIngestionHistory()
+        if df.empty:
+            return JSONResponse(content={"status": "success", "data": []})
+        data = df.to_dict(orient="records")
+        return JSONResponse(content={"status": "success", "data": data})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/show-hard-questions")
+async def show_hard_questions():
+    try:
+        df = ShowHardQuestions()
+        if df.empty:
+            return JSONResponse(content={"status": "success", "data": []})
+        data = df.to_dict(orient="records")
+        return JSONResponse(content={"status": "success", "data": data})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
