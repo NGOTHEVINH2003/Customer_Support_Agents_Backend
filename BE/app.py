@@ -5,7 +5,7 @@ from bot import ask_question
 from embed import build_dataset_from_drive_file
 from fastapi import UploadFile, File
 from Models import Query, IngestionLog, Feedback, Reaction, IngestionList
-from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed
+from Database import log_query, updated_flagged_status, update_reaction_added, update_reaction_removed, should_ingest, upsert_log
 from smtp import SendEmail
 from pathlib import Path
 import tempfile
@@ -54,11 +54,15 @@ async def query_endpoint(query: Query):
 async def ingest_endpoint(payload: IngestionList):
     try:
         # build_chroma_from_pdf(ingestion_log.document_id)
-        build_dataset_from_drive_file(payload.documents[1].document_id, payload.documents[1].document_name)
-
-        return {"received_documents": len(payload.documents), "files": payload.documents[1]}
+        for document in payload.documents:
+            if (should_ingest(document.source,document.document_id, document.last_modified) and document.document_type == "application/pdf"):
+                print(f"Starting ingestion for {document.document_name}...")
+                build_dataset_from_drive_file(document.document_id, document.document_name)
+                upsert_log(document.source, document.document_id, document.document_type, document.document_name, "success", document.last_modified)
+            else: print(f"Skipping ingestion for {document.document_name} as it is up-to-date.")
+        return {"status": "success", "message": "Ingestion process completed."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"status": "failed", "message": str(e)}
     
 @app.post("/feedback")
 async def feedback(feedback: Feedback):

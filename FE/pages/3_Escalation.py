@@ -22,3 +22,4 @@ if df.empty:
 else:
     st.subheader("Danh sách câu hỏi đã escalate")
     st.table(df)
+    

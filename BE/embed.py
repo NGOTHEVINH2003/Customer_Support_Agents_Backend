@@ -8,6 +8,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from pypdf import PdfReader, PdfWriter
 from split import split_pdf_by_outline
+import shutil
 
 # ==== CONFIG ====
 CREDENTIALS_FILE = "Credential.json"   # service account JSON
@@ -52,37 +53,25 @@ def download_from_gdrive_file(service, file_id, save_path: str):
 
 # ===================== RAG PIPELINE =====================
 def process_with_unstructured(file_path: str):
-    if output_dir is None:
-        base_name = os.path.splitext(os.path.basename(file_path))[0]
-        output_dir = os.path.join(os.path.dirname(file_path), base_name)
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    print(f"Splitting {file_path} by outline...")
-    split_files = split_pdf_by_outline(file_path, output_dir)
-
     all_chunks = []
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1500,
-        chunk_overlap=300,
-        separators=["\n# ", "\n## ", "\n### ", "\n", " ", ""]
+        chunk_overlap=350
     )
+    try:
+        loader = UnstructuredPDFLoader(file_path)
+        docs = loader.load()
 
-    for pdf_file in split_files:
-        try:
-            loader = UnstructuredPDFLoader(pdf_file)
-            docs = loader.load()
+        if not docs:
+            print(f"⚠️ No text extracted from {file_path}, skipping.")
+            return []
 
-            if not docs:
-                print(f"⚠️ No text extracted from {pdf_file}")
-                continue
+        split_docs = splitter.split_documents(docs)
+        all_chunks.extend(split_docs)
+        print(f"{os.path.basename(file_path)} → {len(split_docs)} chunks")
 
-            split_docs = splitter.split_documents(docs)
-            all_chunks.extend(split_docs)
-            print(f"{os.path.basename(pdf_file)} → {len(split_docs)} chunks")
-
-        except Exception as e:
-            print(f"Error processing {pdf_file}: {e}")
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
 
     print(f"Total chunks from {file_path}: {len(all_chunks)}")
     return all_chunks
@@ -104,7 +93,7 @@ def embed_dataset(docs, persist_directory="db"):
 
 def build_dataset_from_drive_file(
     file_id, file_name, service = init_gdrive(),
-    persist_directory="db", tmp_dir="tmp"
+    persist_directory="chroma_db", tmp_dir="tmp"
 ):
     # 1. Download PDF từ Google Drive
     os.makedirs(tmp_dir, exist_ok=True)
@@ -120,11 +109,19 @@ def build_dataset_from_drive_file(
     split_files = split_pdf_by_outline(local_path, split_dir)
 
     # 4. Embed từng file PDF đã tách
+    all_docs = []
     for split_pdf in split_files:
         docs = process_with_unstructured(split_pdf)
         print(f"Chunks from {os.path.basename(split_pdf)}: {len(docs)}")
-        embed_dataset(docs, persist_directory=persist_directory)
+        all_docs.extend(docs)
 
+    embed_dataset(all_docs, persist_directory=persist_directory)
+    
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    print(f"🧹 Cleaned up {tmp_dir}")
+
+
+   
 
 # ===================== MAIN =====================
 if __name__ == "__main__":
