@@ -106,7 +106,7 @@ def should_ingest(source: str, document_id: str, last_modified: datetime) -> boo
         return True
     if existing_last_modified is None or last_modified is None:
         return False
-    existing_last_modified = datetime.datetime.fromisoformat(existing_last_modified)
+    existing_last_modified = datetime.fromisoformat(existing_last_modified)
     # if the document has been modified since last ingestion -> re-ingest
     return last_modified > existing_last_modified
 # log the ingestion status into the db for monitoring and version control
@@ -118,7 +118,7 @@ def upsert_log(source, document_id, document_type, document_name, status, last_m
     cursor.execute(
         #if the record exists, update it; otherwise, insert a new record
         """INSERT INTO ingestion_logs (source, document_id, document_type, document_name,  status, last_modified, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(source, document_id) DO UPDATE SET
                 document_type=excluded.document_type,
                 document_name=excluded.document_name,
@@ -126,15 +126,20 @@ def upsert_log(source, document_id, document_type, document_name, status, last_m
                 last_modified=excluded.last_modified,
                 created_at=excluded.created_at
         """,
-        (source, document_id,document_type,document_name , status, last_modified_str, datetime.utcnow().isoformat())
+        (source, document_id,document_type,document_name , status, last_modified_str, datetime.now(timezone.utc).isoformat())
     )
     conn.commit()
     conn.close()
 
 
+def get_ingestion_logs():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM ingestion_logs ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
 if __name__ == "__main__":
     init_db()
-print(f"Database created at {DB_PATH}")
-
-
-

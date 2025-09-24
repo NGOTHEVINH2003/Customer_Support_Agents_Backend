@@ -30,10 +30,10 @@ prompt_template = PromptTemplate(
 Based only on the information provided in the context, answer the user's question in English.
 Follow these rules:
 
-1. If the user asks about **symptoms**, only provide the symptoms of the error.  
-2. If the user asks about **causes**, only provide the causes of the error.  
-3. If the user asks about **solutions/fixes**, only provide the solutions.  
-4. If the user asks generally (e.g., just the error code), then provide all sections (Overview, Symptoms, Causes, Solutions).  
+1. If the user asks about **symptoms**, only provide the symptoms/symptom of the error.  
+2. If the user asks about **causes/cause**, only provide the causes/cause of the error.  
+3. If the user asks about **solutions/fixes/resolutions**, only provide the solution of the error if there a step by step solution prioritize on provide those steps.
+4. If the user asks generally (e.g., just the error code), then provide all sections (Overview, Symptoms, Causes, Resolutions).
 5. Regardless of the question type, always end the answer with a **Recommended Solution** section.  
 
 Answer format must strictly follow this style:
@@ -43,7 +43,7 @@ Answer format must strictly follow this style:
 - Use bullet points to list the relevant information  
 
 **Recommended Solution**  
-- Provide the key solution(s) or next steps for the user
+- Provide the key resolution(s) or next steps for the user
 ---
 
 Instructions:
