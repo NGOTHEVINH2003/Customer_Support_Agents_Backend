@@ -1,33 +1,36 @@
 import streamlit as st
 import pandas as pd
-import requests
+from api_client import ingest_local_files, get_ingestion_history
 
-api_url = "http://127.0.0.1:8000/get-ingestion-history"
-
-df = pd.DataFrame()
-
-try:
-    response = requests.post(api_url)
-    if response.status_code == 200:
-        data = response.json()
-        df = pd.DataFrame(data["data"])
-    else:
-        st.error("Lỗi khi lấy dữ liệu từ API.")
-except Exception as e:
-    st.error(f"Exception occurred: {str(e)}")
 
 st.title("📂 Ingestion / Data Status")
 
-st.subheader("Upload file to ingest")
-uploaded_files = st.file_uploader(
-    "Upload data", accept_multiple_files=True, type="txt"
-)
-for uploaded_file in uploaded_files:
-    df = pd.read_csv(uploaded_file)
-    st.write(df)
+# ================= Upload Files =================
+import streamlit as st
+from api_client import ingest_local_files
 
-if df.empty:
+# Upload files
+uploaded_files = st.file_uploader(
+    "Upload data",
+    type=["pdf", "docx", "xlsx", "txt", "csv"],
+    accept_multiple_files=True,
+)
+
+if uploaded_files:
+    results = ingest_local_files(uploaded_files)
+    for res in results:
+        if res["status"] == "success":
+            st.success(f"✅ {res['file']} ingested successfully")
+        else:
+            st.error(f"❌ {res['file']} failed: {res.get('error', 'unknown error')}")
+    results = []
+
+
+# ================= Ingestion History =================
+history = get_ingestion_history()
+if not history:
     st.info("✅ Chưa có dữ liệu ingestion trong DB.")
 else:
-    st.subheader("Lịch sử ingestion")
+    st.subheader("📜 Lịch sử ingestion")
+    df = pd.DataFrame(history)
     st.dataframe(df)

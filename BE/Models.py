@@ -22,7 +22,3 @@ class IngestionLog(BaseModel):
 
 class IngestionList(BaseModel):
     documents: List[IngestionLog]
-
-class Feedback(BaseModel):
-    question_id: str
-    flagged: bool

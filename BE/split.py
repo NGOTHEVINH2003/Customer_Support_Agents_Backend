@@ -38,7 +38,7 @@ def split_pdf_by_outline(input_file: str, output_root: str = "data_split"):
 
     if not outlines:
         print("This file has no outline/bookmark.")
-        return
+        return [input_file]
 
     flat_outlines = flatten_outlines(outlines)
 
