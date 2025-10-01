@@ -4,12 +4,17 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate 
 from langchain.chains import RetrievalQA 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDzOEsI6A1cYxbB0LvSTbWu6fQjFpeFfIU"
-
+load_dotenv()
 # Load data
-persist_dir = "chroma_db" 
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2") 
+persist_dir = os.getenv("CHROMA_DB_PATH")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+
+embedding_model = HuggingFaceEmbeddings(
+    model_name= EMBEDDING_MODEL,
+    encode_kwargs={"normalize_embedding": True}) 
+
 vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding_model) 
 
 # Retriever
@@ -19,7 +24,7 @@ retriever = vectordb.as_retriever(search_kwargs={"k": 5})
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash", 
     temperature=0,
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
+    google_api_key=os.getenv("GOOGLE_GEMINI_API_KEY"),
     max_retries=1
 ) 
 
@@ -27,30 +32,29 @@ llm = ChatGoogleGenerativeAI(
 prompt_template = PromptTemplate(
     input_variables=["context", "question"], 
     template="""You are a Windows troubleshooting assistant.
-Based only on the information provided in the context, answer the user's question in English.
-Follow these rules:
+Strictly base your answer ONLY on the information provided in the context.
 
-1. If the user asks about **symptoms**, only provide the symptoms/symptom of the error.  
-2. If the user asks about **causes/cause**, only provide the causes/cause of the error.  
-3. If the user asks about **solutions/fixes/resolutions**, only provide the solution of the error if there a step by step solution prioritize on provide those steps.
+Rules:
+1. If the user asks about **symptoms**, only provide the symptoms.
+2. If the user asks about **causes**, only provide the causes.
+3. If the user asks about **solutions/fixes**, only provide the solutions. 
+   - If a step-by-step resolution exists, prioritize listing those steps clearly.
 4. If the user asks generally (e.g., just the error code), then provide all sections (Overview, Symptoms, Causes, Resolutions).
-5. Regardless of the question type, always end the answer with a **Recommended Solution** section.  
+5. Always end the answer with a **Recommended Solution** section.
 
-Answer format must strictly follow this style:
-
+Answer format (MUST follow):
 ---
-**[Main Section Title based on the question]**  
-- Use bullet points to list the relevant information  
+**[Main Section Title based on the question]**
+- Bullet points for key details
 
-**Recommended Solution**  
-- Provide the key resolution(s) or next steps for the user
+**Recommended Solution**
+- Key resolutions or next steps
 ---
 
 Instructions:
-- Only use information from the context.  
+- Do not fabricate or assume facts.
 - If the context does not contain relevant information, clearly state:  
   "The dataset does not provide information about this error."  
-- Do not fabricate or assume facts.  
 - Always answer in English only.
 
 Context:
@@ -66,10 +70,9 @@ qa_chain = RetrievalQA.from_chain_type(
     retriever=retriever, 
     chain_type="stuff",
     chain_type_kwargs={"prompt": prompt_template},
-    return_source_documents=True  # take source documents (for confidence calculation)
+    return_source_documents=True
 )
 
-# Query with confidence
 def ask_question(query):
     try:
         result = qa_chain(query)  

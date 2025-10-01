@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 try: 
-    respone = requests.post(api_url)
+    respone = requests.get(api_url)
     if respone.status_code == 200:
         data = respone.json()
         metrics = data["metrics"]

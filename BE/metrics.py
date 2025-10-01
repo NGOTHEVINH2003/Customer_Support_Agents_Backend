@@ -38,7 +38,7 @@ def GetMetrics():
 def GetNegativeFeedbackTrend():
     conn = get_db_connection()
     query = """
-        SELECT DATE(timestamp) as Day, SUM(Thumps_down) as Negative_Feedback
+        SELECT DATE(timestamp) as Day, SUM(thumbs_down) as Negative_Feedback
         FROM query_logs
         GROUP BY DATE(timestamp)
         ORDER BY Day
@@ -57,7 +57,6 @@ def GetIngestionHistory():
                status as 'Trạng thái'
         FROM ingestion_logs
         ORDER BY last_modified DESC
-        LIMIT 10
     """
     df = pd.read_sql(query, conn)
     conn.close()
@@ -66,19 +65,19 @@ def GetIngestionHistory():
 def ShowHardQuestions():
     conn = get_db_connection()
     query = """
-        SELECT 
-            question,
-            COUNT(*) AS total_asked,
-            MAX(timestamp) AS last_asked,
-            CASE 
-                WHEN SUM(flagged) > 0 
-                    OR SUM(CASE WHEN similarity_score < 0.5 THEN 1 ELSE 0 END) > 0
-                    OR SUM(CASE WHEN Thumps_down > Thumps_up THEN 1 ELSE 0 END) > 0
-                THEN 'Yes'
-                ELSE 'No'
-            END AS escalated
-        FROM query_logs
-        GROUP BY question;
+            SELECT 
+                question,
+                COUNT(*) AS total_asked,
+                MAX(timestamp) AS last_asked,
+                CASE 
+                    WHEN SUM(flagged) > 0 
+                        OR SUM(CASE WHEN similarity_score < 50 THEN 1 ELSE 0 END) > 0
+                        OR SUM(CASE WHEN Thumbs_down > Thumbs_up THEN 1 ELSE 0 END) > 0
+                    THEN 'Yes'
+                    ELSE 'No'
+                END AS escalated
+            FROM query_logs
+            GROUP BY question;
     """
     df = pd.read_sql(query, conn)
     conn.close()
