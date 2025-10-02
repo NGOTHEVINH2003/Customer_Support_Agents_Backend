@@ -6,10 +6,11 @@ langchain-google-genai
 chromadb
 pydantic
 python-dotenv
-streamlit
-plotly-express
 sentence-transformers
 python-multipart
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
 scikit-learn
-torch
 unstructured[all-docs]
