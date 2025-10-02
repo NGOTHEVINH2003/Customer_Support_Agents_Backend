@@ -1,5 +1,4 @@
 import os
-import torch
 import shutil
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -13,7 +12,6 @@ from langchain_community.document_loaders import (
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from pypdf import PdfReader, PdfWriter
 from split import split_pdf_by_outline
 from dotenv import load_dotenv
 
@@ -132,7 +130,7 @@ def process_with_unstructured(file_path: str):
 def embed_dataset(docs, persist_directory="db"):
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cuda" if torch.cuda.is_available() else "cpu"}
+        model_kwargs={"device": "cpu"}
     )
     vectordb = Chroma.from_documents(
         documents=docs,
