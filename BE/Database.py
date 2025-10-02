@@ -375,8 +375,8 @@ def get_all_query_logs(db_path="log.db"):
 # -----------------------------
 if __name__ == "__main__":
     init_db()
-    logs = get_all_query_logs("log.db")
+    # logs = get_all_query_logs("log.db")
 
-    for log in logs:
-        print(log)
+    # for log in logs:
+    #     print(log)
 
